@@ -44,6 +44,7 @@
             <div class="row">
               <div class="col-md-4">
                 <v-switch
+                  @click="selected = []"
                   v-model="singleSelect"
                   label="Single select"
                   class="pa-3"
@@ -58,7 +59,15 @@
                   hide-details
                 ></v-text-field>
               </div>
-            </div>
+            </div> </template
+          ><template
+            v-slot:item.data-table-select="{ item, isSelected, select }"
+          >
+            <v-simple-checkbox
+              :value="isSelected"
+              :disabled="checkOrder(item)"
+              @input="select($event)"
+            ></v-simple-checkbox>
           </template>
         </v-data-table>
         <div class="d-flex justify-end pt-2">
@@ -76,7 +85,11 @@
 <script>
 import api from "../../apis/index";
 import { mapGetters } from "vuex";
+import Ripple from "vuetify/lib/directives/ripple";
 export default {
+  directives: {
+    Ripple,
+  },
   computed: {
     ...mapGetters("DONHANG", [
       "getLoading",
@@ -87,13 +100,30 @@ export default {
   },
   async beforeCreate() {
     const result = await api.getDonhang();
+    result.data.forEach((element) => {
+      let trangthai = "";
+      if (element.trangthai == 0) {
+        trangthai = "Ready";
+      } else if (element.trangthai == 1) {
+        trangthai = "Delivering";
+      } else {
+        trangthai = "Deliveried";
+      }
+      this.desserts.push({ ...element, trangthai });
+    });
 
-    this.desserts = [...result.data];
-    this.orderBySearch = [...result.data];
+    this.orderBySearch = [...this.desserts];
   },
   methods: {
-    btnShip() {
+    checkOrder(item) {
+      if (item.trangthai == "Deliveried" || item.trangthai == "Delivering") {
+        return true;
+      }
+      return false;
+    },
+    async btnShip() {
       if (this.selected.length != 0) {
+        await api.markDeliveringOrders(this.selected);
         const now = new Date();
         const secondsSinceEpoch = Math.round(now.getTime() / 1000);
         this.$store.commit("DONHANG/setdepartureTime", secondsSinceEpoch);

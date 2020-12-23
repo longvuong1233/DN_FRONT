@@ -8,12 +8,22 @@
         scroll-target="#hide-on-scroll-example"
       >
         <v-btn color="deep-purple accent-4" text>
+          <span>Fee: {{ getTotalFee.toFixed(0) }}.000đ</span>
+
+          <v-icon>mdi-cash-usd</v-icon>
+        </v-btn>
+        <v-btn color="deep-purple accent-4" text>
           <span>{{ startTime }}s</span>
 
           <v-icon>mdi-clock-start</v-icon>
         </v-btn>
 
-        <v-btn color="deep-purple accent-4" text @click="btnGO">
+        <v-btn
+          color="deep-purple accent-4"
+          text
+          @click="btnGO"
+          v-if="targetTask == -1"
+        >
           <span>Start</span>
 
           <v-icon>mdi-rocket</v-icon>
@@ -23,6 +33,14 @@
           <span>{{ state }}</span>
 
           <v-icon>{{ iconState }}</v-icon>
+        </v-btn>
+        <v-btn color="deep-purple accent-4" text>
+          <span
+            >Estimated: {{ totalDistance }}
+            {{ totalDistance > 1 ? "kms" : "km" }}</span
+          >
+
+          <v-icon>mdi-ruler</v-icon>
         </v-btn>
       </v-bottom-navigation>
 
@@ -80,6 +98,7 @@
 
 <script>
 import DirectionsRenderer from "./DirectionsRenderer";
+import api from "../../apis/index";
 import { mapGetters } from "vuex";
 export default {
   created() {
@@ -96,11 +115,23 @@ export default {
         }
       }
     }
+    this.totalDistance += this.getDistance(
+      this.getHome,
+      this.getInforTasksSorted[0]
+    );
+    for (let i = 1; i < this.getInforTasksSorted.length; i++) {
+      this.totalDistance += this.getDistance(
+        this.getInforTasksSorted[i],
+        this.getInforTasksSorted[i - 1]
+      );
+    }
+    this.totalDistance /= 1000;
+    this.totalDistance = this.totalDistance.toFixed(2);
   },
   data() {
     return {
       //mặc định là Montreal
-
+      totalDistance: 0,
       markers: [],
       places: [],
       state: "Next",
@@ -116,11 +147,18 @@ export default {
     };
   },
   computed: {
+    getTotalFee() {
+      if (this.totalDistance < 4) {
+        return 18;
+      }
+      return this.totalDistance * 8;
+    },
     ...mapGetters("DONHANG", [
       "getHome",
       "getdepartureTime",
       "getTasks",
       "getOrderSort",
+      "getInforTasksSorted",
     ]),
     iconState() {
       if (this.state == "Next") {
@@ -145,17 +183,43 @@ export default {
   },
   watch: {
     targetTask(newValue) {
+      if (newValue != 0 && newValue <= this.taskSort.length - 1) {
+        api.markDeliveriedOrders(this.taskSort[newValue - 1]);
+      }
+      if (newValue == this.taskSort.length - 1) {
+        api.markDeliveriedOrders(this.taskSort[newValue]);
+      }
       if (newValue < this.taskSort.length && newValue > 0) {
         this.e1++;
         this.start = this.taskSort[newValue - 1].diachi;
         this.end = this.taskSort[newValue].diachi;
       }
+
       if (newValue == this.taskSort.length - 1) {
         this.state = "End";
       }
     },
   },
   methods: {
+    rad(x) {
+      return (x * Math.PI) / 180;
+    },
+    getDistance(p1, p2) {
+      var R = 6378137; // Earth’s mean radius in meter
+
+      var dLat = this.rad(p2.lat - p1.lat);
+      var dLong = this.rad(p2.lng - p1.lng);
+
+      var a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(this.rad(p1.lat)) *
+          Math.cos(this.rad(p2.lat)) *
+          Math.sin(dLong / 2) *
+          Math.sin(dLong / 2);
+      var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      var d = R * c;
+      return d; // returns the distance in meter
+    },
     btnGO() {
       this.startTime = 0;
       if (this.interval != null) {

@@ -12,7 +12,8 @@ const state = {
     home: {
         "lat": 10.731785748347498,
         "lng": 106.69928612872141
-    }
+    },
+    inforTasksSorted: []
 
 }
 
@@ -31,6 +32,9 @@ const getters = {
     },
     getdepartureTime: (state) => {
         return state.departureTime
+    },
+    getInforTasksSorted(state) {
+        return state.inforTasksSorted
     }
 }
 
@@ -50,6 +54,9 @@ const mutations = {
         });
         state.OrderSort = temp
 
+    },
+    setInforTasksSorted(state, payload) {
+        state.inforTasksSorted = payload
     }
 
 }
@@ -64,6 +71,7 @@ const actions = {
         const result = await api.TSMOrder(departureTime, home, tasks)
 
         commit("setOrderSort", result.data.result.schedule)
+        commit("setInforTasksSorted", result.data.result.schedule)
         commit("loading", false)
     }
 
